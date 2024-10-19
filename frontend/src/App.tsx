@@ -11,7 +11,10 @@ const App: React.FC = () => {
   const [graphG, setGraphG] = useState<Graph>({ nodes: [], links: [] }); // Large complex graph G
   const [graphS, setGraphS] = useState<Graph>({ nodes: [], links: [] }); // Smaller biclique S
   const [homomorphism, setHomomorphism] = useState<{ [key: string]: string }>({});
+  const [markovChain, setMarkovChain] = useState<Array<{ [key: string]: string }>>([]); // Store the Markov Chain
   const [bicliqueSize, setBicliqueSize] = useState(3); // Only one input for both sets of the biclique
+  const [selectedS, setSelectedS] = useState<string | null>(null); // Selected vertex from S
+  const [selectedG, setSelectedG] = useState<string | null>(null); // Selected vertex from G
 
   // Fetch the large complex graph G
   useEffect(() => {
@@ -19,8 +22,8 @@ const App: React.FC = () => {
       .then(response => {
         const { nodes, edges } = response.data;
         const formattedGraph = {
-          nodes: nodes.map((node: string) => ({ id: node })),
-          links: edges.map(([source, target]: [string, string]) => ({ source, target }))
+          nodes: nodes.map((node: string) => ({ id: `G-${node}` })), // Prefix with G-
+          links: edges.map(([source, target]: [string, string]) => ({ source: `G-${source}`, target: `G-${target}` }))
         };
         setGraphG(formattedGraph);
       })
@@ -35,15 +38,16 @@ const App: React.FC = () => {
     }).then(response => {
       // Update homomorphism and biclique S
       setHomomorphism(response.data.homomorphism);
+      setMarkovChain([response.data.homomorphism]); // Initialize the Markov Chain with the first homomorphism
 
-      // Simulate biclique graph S based on input sizes
-      const nodesS = Array.from({ length: bicliqueSize }, (_, i) => ({ id: `S${i}` }))
-        .concat(Array.from({ length: bicliqueSize }, (_, i) => ({ id: `G${i}` })));
+      // Simulate biclique graph S based on input sizes, prefixing IDs
+      const nodesS = Array.from({ length: bicliqueSize }, (_, i) => ({ id: `S-${i}` }))
+        .concat(Array.from({ length: bicliqueSize }, (_, i) => ({ id: `S-G${i}` })));
 
       const linksS = [];
       for (let i = 0; i < bicliqueSize; i++) {
         for (let j = 0; j < bicliqueSize; j++) {
-          linksS.push({ source: `S${i}`, target: `G${j}` });
+          linksS.push({ source: `S-${i}`, target: `S-G${j}` });
         }
       }
 
@@ -55,9 +59,65 @@ const App: React.FC = () => {
   const updateHomomorphism = () => {
     axios.post('http://localhost:5000/update_homomorphism')
       .then(response => {
-        setHomomorphism(response.data.homomorphism);
+        const { homomorphism, success, message, selected_S, selected_G } = response.data;
+
+        // Update the selected vertices for highlighting
+        setSelectedS(`S-${selected_S}`);
+        setSelectedG(`G-${selected_G}`);
+
+        if (success) {
+          // Add the new state to the Markov Chain
+          setHomomorphism(homomorphism);
+          setMarkovChain(prevChain => [...prevChain, homomorphism]);
+        } else {
+          // Show a popup with the failure message
+          alert(message || 'Homomorphism update attempt failed.');
+        }
       })
       .catch(error => console.error('Error updating homomorphism:', error));
+  };
+
+  // Function to run 100 iterations of homomorphism updates
+  const updateHomomorphismMultiple = async () => {
+    for (let i = 0; i < 100; i++) {
+      try {
+        const response = await axios.post('http://localhost:5000/update_homomorphism');
+        const { homomorphism, success, message, selected_S, selected_G } = response.data;
+
+        // Update the selected vertices for highlighting
+        setSelectedS(`S-${selected_S}`);
+        setSelectedG(`G-${selected_G}`);
+
+        if (success) {
+          // Add the new state to the Markov Chain
+          setHomomorphism(homomorphism);
+          setMarkovChain(prevChain => [...prevChain, homomorphism]);
+        } else {
+          console.log(message || 'Homomorphism update attempt failed.');
+        }
+      } catch (error) {
+        console.error('Error updating homomorphism:', error);
+      }
+    }
+  };
+
+  // Function to render nodes with custom styles for highlighting
+  const renderNode = (node: any, ctx: any, globalScale: number) => {
+    const size = 10 / globalScale; // Adjust size based on zoom level
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, size, 0, 2 * Math.PI, false);
+
+    // Highlight the selected nodes in different colors
+    if (node.id === selectedS) {
+      ctx.fillStyle = 'red';  // Color for selected vertex in S
+    } else if (node.id === selectedG) {
+      ctx.fillStyle = 'blue'; // Color for selected vertex in G
+    } else {
+      ctx.fillStyle = 'gray'; // Default color for unselected nodes
+    }
+    ctx.fill();
+    ctx.strokeStyle = 'black';
+    ctx.stroke();
   };
 
   return (
@@ -72,10 +132,11 @@ const App: React.FC = () => {
           linkDirectionalArrowRelPos={1}
           width={window.innerWidth / 2 - 20}  // Split screen into two halves
           height={window.innerHeight - 150}   // Height adjustment
+          nodeCanvasObject={renderNode}       // Render nodes with custom styles
         />
       </div>
 
-      {/* Right side for the smaller biclique S */}
+      {/* Right side for the smaller biclique S and Markov Chain */}
       <div style={{ flex: 1, border: '1px solid #ccc', padding: '10px' }}>
         <h2 style={{ textAlign: 'center' }}>Biclique S (Smaller Graph)</h2>
         <ForceGraph2D
@@ -85,10 +146,11 @@ const App: React.FC = () => {
           linkDirectionalArrowRelPos={1}
           width={window.innerWidth / 2 - 20}  // Split screen into two halves
           height={window.innerHeight - 300}   // Height adjustment
+          nodeCanvasObject={renderNode}       // Render nodes with custom styles
         />
 
         {/* Controls for setting biclique size */}
-        <div style={{ marginTop: '20px' }}>
+        <div style={{ marginTop: '10px' }}>
           <label>
             Biclique size:
             <input 
@@ -110,9 +172,32 @@ const App: React.FC = () => {
           ))}
         </ul>
 
-        <button onClick={updateHomomorphism} style={{ marginTop: '10px' }}>
-          Update Homomorphism
-        </button>
+        {/* Buttons for updating homomorphism */}
+        <div style={{ marginTop: '10px' }}>
+          <button onClick={updateHomomorphism} style={{ marginRight: '10px' }}>
+            Update Homomorphism
+          </button>
+          <button onClick={updateHomomorphismMultiple}>
+            Run 100 Iterations
+          </button>
+        </div>
+
+        {/* Display the entire Markov Chain */}
+        <h3 style={{ marginTop: '10px' }}>Markov Chain (States):</h3>
+        <div style={{ maxHeight: '250px', overflowY: 'auto', padding: '5px', border: '1px solid #ddd' }}>
+          <ol style={{ fontSize: '12px' }}>
+            {markovChain.map((state, index) => (
+              <li key={index}>
+                State {index + 1}:
+                <ul>
+                  {Object.entries(state).map(([S_vertex, G_vertex]) => (
+                    <li key={S_vertex}>{S_vertex} &rarr; {G_vertex}</li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ol>
+        </div>
       </div>
     </div>
   );
