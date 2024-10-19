@@ -1,0 +1,15 @@
+{
+    "name": "dissertation-project",
+    "version": "1.0.0",
+    "scripts": {
+        "start-Concurrent": "concurrently \"npm run start-client\" \"npm run start-backend\"",
+        "start-client": "npm start --prefix frontend",
+        "start-backend": "python -m flask --app backend/app run"
+    },
+    "devDependencies": {
+        "concurrently": "^9.0.1"
+    },
+    "dependencies": {
+        "react-scripts": "^5.0.1"
+    }
+}
