@@ -16,7 +16,9 @@ const App: React.FC = () => {
   const [selectedS, setSelectedS] = useState<string | null>(null);
   const [selectedG, setSelectedG] = useState<string | null>(null);
   const [homomorphicEdges, setHomomorphicEdges] = useState<Array<[string, string]>>([]);
-  const graphRef = useRef<any>(null);
+
+  const graphRefG = useRef<any>(null);
+  const graphRefS = useRef<any>(null);
 
   useEffect(() => {
     axios.get('http://localhost:5000/get_graph')
@@ -27,6 +29,12 @@ const App: React.FC = () => {
           links: edges.map(([source, target]: [string, string]) => ({ source: `G-${source}`, target: `G-${target}` }))
         };
         setGraphG(formattedGraph);
+
+        setTimeout(() => {
+          if (graphRefG.current) {
+            graphRefG.current.zoomToFit(400, 50);
+          }
+        }, 100);
       })
       .catch(error => console.error('Error fetching graph G:', error));
   }, []);
@@ -47,7 +55,7 @@ const App: React.FC = () => {
         fy: i * 100 - ((bicliqueSize - 1) * 50),
       }))
         .concat(Array.from({ length: bicliqueSize }, (_, i) => ({
-          id: `S-G${i}`,
+          id: `S-${bicliqueSize + i}`,
           x: 150,
           y: i * 100 - ((bicliqueSize - 1) * 50),
           fx: 150,
@@ -57,15 +65,15 @@ const App: React.FC = () => {
       const linksS = [];
       for (let i = 0; i < bicliqueSize; i++) {
         for (let j = 0; j < bicliqueSize; j++) {
-          linksS.push({ source: `S-${i}`, target: `S-G${j}` });
+          linksS.push({ source: `S-${i}`, target: `S-${bicliqueSize + j}` });
         }
       }
 
       setGraphS({ nodes: nodesS, links: linksS });
 
       setTimeout(() => {
-        if (graphRef.current) {
-          graphRef.current.zoomToFit(400, 50);
+        if (graphRefS.current) {
+          graphRefS.current.zoomToFit(400, 50);
         }
       }, 100);
     }).catch(error => {
@@ -131,23 +139,24 @@ const App: React.FC = () => {
   const renderNode = (node: any, ctx: any, globalScale: number) => {
     const size = 10 / globalScale;
     const isSet1 = node.id.startsWith('S-') && parseInt(node.id.split('-')[1]) < bicliqueSize;
-    const isSet2 = node.id.startsWith('S-G');
+    const isSet2 = node.id.startsWith('S-') && parseInt(node.id.split('-')[1]) >= bicliqueSize;
+    const isComplexGraph = node.id.startsWith('G-');
 
     ctx.beginPath();
     ctx.arc(node.x, node.y, size, 0, 2 * Math.PI, false);
 
-    if (isSet1) {
-      ctx.fillStyle = 'red';
-    } else if (isSet2) {
-      ctx.fillStyle = 'blue';
-    } else {
-      ctx.fillStyle = 'gray';
-    }
-
-    if (node.id === selectedS) {
+    if (node.id === selectedS && (isSet1 || isSet2)) {
       ctx.fillStyle = 'yellow';
-    } else if (node.id === selectedG) {
+    } else if (node.id === selectedG && isComplexGraph) {
       ctx.fillStyle = 'green';
+    } else {
+      if (isSet1) {
+        ctx.fillStyle = 'red';
+      } else if (isSet2) {
+        ctx.fillStyle = 'blue';
+      } else if (isComplexGraph) {
+        ctx.fillStyle = 'gray';
+      }
     }
 
     ctx.fill();
@@ -174,7 +183,7 @@ const App: React.FC = () => {
       <div style={{ flex: 2, border: '1px solid #ccc', marginRight: '10px' }}>
         <h2 style={{ textAlign: 'center' }}>Graph G (Complex Graph)</h2>
         <ForceGraph2D
-          ref={graphRef}
+          ref={graphRefG}
           graphData={graphG}
           nodeLabel="id"
           linkDirectionalArrowLength={0}
@@ -190,7 +199,7 @@ const App: React.FC = () => {
         <div style={{ flex: 1, border: '1px solid #ccc', padding: '10px' }}>
           <h2 style={{ textAlign: 'center' }}>Biclique S (Smaller Graph)</h2>
           <ForceGraph2D
-            ref={graphRef}
+            ref={graphRefS}
             graphData={graphS}
             nodeLabel="id"
             linkDirectionalArrowLength={0}
