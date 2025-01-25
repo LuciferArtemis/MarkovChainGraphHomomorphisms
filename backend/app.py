@@ -8,7 +8,9 @@ CORS(app)
 
 # G = nx.erdos_renyi_graph(n=1000, p=0.05)
 
-G = nx.barabasi_albert_graph(n=1000, m=999)
+# G = nx.barabasi_albert_graph(n=10, m=9)
+
+G = nx.complete_graph(50)
 
 # G = nx.watts_strogatz_graph(n=1000, k=4, p=0.3)
 

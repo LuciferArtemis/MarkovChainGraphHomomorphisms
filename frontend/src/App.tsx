@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import ForceGraph2D from 'react-force-graph-2d';
 
 interface Graph {
-  nodes: { id: string, x?: number, y?: number }[];
+  nodes: { id: string, x?: number, y?: number, fx?: number, fy?: number }[];
   links: { source: string, target: string }[];
 }
 
@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [selectedS, setSelectedS] = useState<string | null>(null);
   const [selectedG, setSelectedG] = useState<string | null>(null);
   const [homomorphicEdges, setHomomorphicEdges] = useState<Array<[string, string]>>([]);
+  const graphRef = useRef<any>(null);
 
   useEffect(() => {
     axios.get('http://localhost:5000/get_graph')
@@ -41,13 +42,17 @@ const App: React.FC = () => {
       const nodesS = Array.from({ length: bicliqueSize }, (_, i) => ({
         id: `S-${i}`,
         x: -150,
-        y: i * 100 - bicliqueSize * 50
+        y: i * 100 - ((bicliqueSize - 1) * 50),
+        fx: -150,
+        fy: i * 100 - ((bicliqueSize - 1) * 50),
       }))
-      .concat(Array.from({ length: bicliqueSize }, (_, i) => ({
-        id: `S-G${i}`,
-        x: 150,
-        y: i * 100 - bicliqueSize * 50
-      })));
+        .concat(Array.from({ length: bicliqueSize }, (_, i) => ({
+          id: `S-G${i}`,
+          x: 150,
+          y: i * 100 - ((bicliqueSize - 1) * 50),
+          fx: 150,
+          fy: i * 100 - ((bicliqueSize - 1) * 50),
+        })));
 
       const linksS = [];
       for (let i = 0; i < bicliqueSize; i++) {
@@ -57,6 +62,12 @@ const App: React.FC = () => {
       }
 
       setGraphS({ nodes: nodesS, links: linksS });
+
+      setTimeout(() => {
+        if (graphRef.current) {
+          graphRef.current.zoomToFit(400, 50);
+        }
+      }, 100);
     }).catch(error => {
       console.error('Error generating biclique:', error.response ? error.response.data : error.message);
       alert('Error: ' + (error.response ? error.response.data.error : error.message));
@@ -145,8 +156,8 @@ const App: React.FC = () => {
   };
 
   const renderLink = (link: any, ctx: any, globalScale: number) => {
-    const isHomomorphicEdge = homomorphicEdges.some(edge => 
-      (edge[0] === link.source.id && edge[1] === link.target.id) || 
+    const isHomomorphicEdge = homomorphicEdges.some(edge =>
+      (edge[0] === link.source.id && edge[1] === link.target.id) ||
       (edge[0] === link.target.id && edge[1] === link.source.id)
     );
 
@@ -163,10 +174,11 @@ const App: React.FC = () => {
       <div style={{ flex: 2, border: '1px solid #ccc', marginRight: '10px' }}>
         <h2 style={{ textAlign: 'center' }}>Graph G (Complex Graph)</h2>
         <ForceGraph2D
+          ref={graphRef}
           graphData={graphG}
           nodeLabel="id"
-          linkDirectionalArrowLength={6}
-          linkDirectionalArrowRelPos={1}
+          linkDirectionalArrowLength={0}
+          linkDirectionalArrowRelPos={0}
           width={window.innerWidth / 2 - 20}
           height={window.innerHeight - 150}
           nodeCanvasObject={renderNode}
@@ -178,10 +190,11 @@ const App: React.FC = () => {
         <div style={{ flex: 1, border: '1px solid #ccc', padding: '10px' }}>
           <h2 style={{ textAlign: 'center' }}>Biclique S (Smaller Graph)</h2>
           <ForceGraph2D
+            ref={graphRef}
             graphData={graphS}
             nodeLabel="id"
-            linkDirectionalArrowLength={6}
-            linkDirectionalArrowRelPos={1}
+            linkDirectionalArrowLength={0}
+            linkDirectionalArrowRelPos={0}
             width={window.innerWidth / 4 - 20}
             height={window.innerHeight / 2 - 150}
             nodeCanvasObject={renderNode}
@@ -191,10 +204,10 @@ const App: React.FC = () => {
           <div style={{ marginTop: '10px' }}>
             <label>
               Biclique size:
-              <input 
-                type="number" 
-                value={bicliqueSize} 
-                onChange={(e) => setBicliqueSize(Number(e.target.value))} 
+              <input
+                type="number"
+                value={bicliqueSize}
+                onChange={(e) => setBicliqueSize(Number(e.target.value))}
               />
             </label>
             <button onClick={generateBiclique} style={{ marginLeft: '10px' }}>
