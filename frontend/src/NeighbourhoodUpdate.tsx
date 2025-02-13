@@ -7,7 +7,7 @@ interface Graph {
   links: { source: string, target: string }[];
 }
 
-const SmartUpdate: React.FC = () => {
+const NeighbourhoodUpdate: React.FC = () => {
   const [graphG, setGraphG] = useState<Graph>({ nodes: [], links: [] });
   const [graphS, setGraphS] = useState<Graph>({ nodes: [], links: [] });
   const [homomorphism, setHomomorphism] = useState<{ [key: string]: string }>({});
@@ -82,8 +82,8 @@ const SmartUpdate: React.FC = () => {
     });
   };
 
-  const updateHomomorphismSmart = () => {
-    axios.post('http://localhost:5000/update_homomorphism_smart')
+  const updateHomomorphismNeighbourhood = () => {
+    axios.post('http://localhost:5000/update_homomorphism_neighbourhood')
       .then(response => {
         const { homomorphism, success, message, selected_S, selected_G, homomorphic_edges } = response.data;
 
@@ -104,13 +104,13 @@ const SmartUpdate: React.FC = () => {
       });
   };
 
-  const updateHomomorphismSmartMultiple = async () => {
+  const updateHomomorphismNeighbourhoodMultiple = async () => {
     let successCount = 0;
     let failureCount = 0;
 
     for (let i = 0; i < 100; i++) {
       try {
-        const response = await axios.post('http://localhost:5000/update_homomorphism_smart');
+        const response = await axios.post('http://localhost:5000/update_homomorphism_neighbourhood');
         const { homomorphism, success, message, selected_S, selected_G, homomorphic_edges } = response.data;
 
         setSelectedS(`S-${selected_S}`);
@@ -236,10 +236,10 @@ const SmartUpdate: React.FC = () => {
           </ul>
 
           <div style={{ marginTop: '10px' }}>
-            <button onClick={updateHomomorphismSmart} style={{ marginRight: '10px' }}>
+            <button onClick={updateHomomorphismNeighbourhood} style={{ marginRight: '10px' }}>
               Update Homomorphism
             </button>
-            <button onClick={updateHomomorphismSmartMultiple}>
+            <button onClick={updateHomomorphismNeighbourhoodMultiple}>
               Run 100 Iterations
             </button>
           </div>
@@ -265,4 +265,4 @@ const SmartUpdate: React.FC = () => {
   );
 };
 
-export default SmartUpdate;
+export default NeighbourhoodUpdate;

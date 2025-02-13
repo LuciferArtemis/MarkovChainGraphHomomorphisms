@@ -140,8 +140,8 @@ def update_homomorphism():
             'selected_G': random_vertex_in_G
         }), 200
     
-@app.route('/update_homomorphism_smart', methods=['POST'])
-def update_homomorphism_smart():
+@app.route('/update_homomorphism_neighbourhood', methods=['POST'])
+def update_homomorphism_neighbourhood():
     global current_homomorphism
 
     if S is None:
