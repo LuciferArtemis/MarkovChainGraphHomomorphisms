@@ -139,6 +139,56 @@ def update_homomorphism():
             'selected_S': random_vertex_in_S,
             'selected_G': random_vertex_in_G
         }), 200
+    
+@app.route('/update_homomorphism_smart', methods=['POST'])
+def update_homomorphism_smart():
+    global current_homomorphism
+
+    if S is None:
+        return jsonify({'error': 'Biclique not generated yet'}), 400
+
+    set1_nodes = list(S.nodes)[:len(S.nodes) // 2]
+    set2_nodes = list(S.nodes)[len(S.nodes) // 2:]
+
+    random_vertex_in_S = random.choice(set1_nodes + set2_nodes)
+
+    mapped_vertices = set(current_homomorphism.values())
+    neighbor_candidates = set()
+    for v in mapped_vertices:
+        neighbor_candidates.update(G.neighbors(v))
+
+    neighbor_candidates.discard(current_homomorphism[random_vertex_in_S])
+
+    if not neighbor_candidates:
+        return jsonify({
+            'homomorphism': current_homomorphism,
+            'success': False,
+            'message': 'No valid neighboring vertices to map to.',
+            'selected_S': random_vertex_in_S,
+        }), 400
+
+    random_vertex_in_G = random.choice(list(neighbor_candidates))
+
+    new_mapping = current_homomorphism.copy()
+    new_mapping[random_vertex_in_S] = random_vertex_in_G
+
+    if is_valid_homomorphism(S, G, new_mapping):
+        current_homomorphism = new_mapping
+        return jsonify({
+            'homomorphism': current_homomorphism,
+            'success': True,
+            'selected_S': random_vertex_in_S,
+            'selected_G': random_vertex_in_G
+        }), 200
+    else:
+        return jsonify({
+            'homomorphism': current_homomorphism,
+            'success': False,
+            'message': 'Homomorphism attempt failed',
+            'selected_S': random_vertex_in_S,
+            'selected_G': random_vertex_in_G
+        }), 200
+
 
 if __name__ == '__main__':
     app.run(debug=True)
