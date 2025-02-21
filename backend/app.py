@@ -6,15 +6,19 @@ import random
 app = Flask(__name__)
 CORS(app) 
 
+G = nx.complete_graph(50)
+G.graph["graph_type"] = "Complete Graph"
+
 # G = nx.erdos_renyi_graph(n=1000, p=0.05)
+# G.graph["graph_type"] = f"Erdős–Rényi Graph (p=0.05)"
 
 # G = nx.barabasi_albert_graph(n=10, m=9)
-
-G = nx.complete_graph(50)
+# G.graph["graph_type"] = f"Barabási–Albert Graph (m=9)"
 
 # G = nx.watts_strogatz_graph(n=1000, k=4, p=0.3)
+# G.graph["graph_type"] = f"Watts-Strogatz Graph (k=4, p=0.3)"
 
-# G = nx.powerlaw_cluster_graph(n=1000, m=3, p=0.5)
+
 
 current_homomorphism = {}
 S = None
@@ -70,10 +74,27 @@ def generate_biclique():
 
 @app.route('/get_graph', methods=['GET'])
 def get_graph():
-
     nodes = list(G.nodes)
     edges = list(G.edges)
-    return jsonify({'nodes': nodes, 'edges': edges})
+
+    if nx.density(G) == 1.0:
+        graph_type = "Complete Graph"
+    elif "p" in G.graph:
+        graph_type = f"Erdős–Rényi Graph (p={G.graph['p']})"
+    elif "m" in G.graph:
+        graph_type = f"Barabási–Albert Graph (m={G.graph['m']})"
+    elif "k" in G.graph and "p" in G.graph:
+        graph_type = f"Watts-Strogatz Graph (k={G.graph['k']}, p={G.graph['p']})"
+    else:
+        graph_type = "Custom Graph"
+
+    return jsonify({
+        'nodes': nodes,
+        'edges': edges,
+        'graph_type': graph_type,
+        'num_nodes': len(nodes),
+        'num_edges': len(edges),
+    })
 
 
 @app.route('/get_homomorphism', methods=['GET'])
@@ -148,18 +169,22 @@ def update_homomorphism_neighbourhood():
         return jsonify({'error': 'Biclique not generated yet'}), 400
 
     set1_nodes = list(S.nodes)[:len(S.nodes) // 2]
-    set2_nodes = list(S.nodes)[len(S.nodes) // 2:]
+    set2_nodes = list(S.nodes)[len(S.nodes) // 2:]  
 
     random_vertex_in_S = random.choice(set1_nodes + set2_nodes)
 
-    mapped_vertices = set(current_homomorphism.values())
-    neighbor_candidates = set()
-    for v in mapped_vertices:
-        neighbor_candidates.update(G.neighbors(v))
+    if random_vertex_in_S in set1_nodes:
+        mapped_neighbors = set(current_homomorphism[v] for v in set2_nodes if v in current_homomorphism)
+    else:
+        mapped_neighbors = set(current_homomorphism[v] for v in set1_nodes if v in current_homomorphism)
 
-    neighbor_candidates.discard(current_homomorphism[random_vertex_in_S])
+    candidate_vertices = set()
+    for v in mapped_neighbors:
+        candidate_vertices.update(G.neighbors(v))
 
-    if not neighbor_candidates:
+    candidate_vertices.discard(current_homomorphism[random_vertex_in_S])
+
+    if not candidate_vertices:
         return jsonify({
             'homomorphism': current_homomorphism,
             'success': False,
@@ -167,7 +192,7 @@ def update_homomorphism_neighbourhood():
             'selected_S': random_vertex_in_S,
         }), 400
 
-    random_vertex_in_G = random.choice(list(neighbor_candidates))
+    random_vertex_in_G = random.choice(list(candidate_vertices))
 
     new_mapping = current_homomorphism.copy()
     new_mapping[random_vertex_in_S] = random_vertex_in_G
@@ -188,6 +213,7 @@ def update_homomorphism_neighbourhood():
             'selected_S': random_vertex_in_S,
             'selected_G': random_vertex_in_G
         }), 200
+
 
 
 if __name__ == '__main__':

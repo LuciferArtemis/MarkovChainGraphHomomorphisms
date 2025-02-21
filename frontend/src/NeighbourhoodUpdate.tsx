@@ -20,24 +20,38 @@ const NeighbourhoodUpdate: React.FC = () => {
   const graphRefG = useRef<any>(null);
   const graphRefS = useRef<any>(null);
 
-  useEffect(() => {
-    axios.get('http://localhost:5000/get_graph')
-      .then(response => {
-        const { nodes, edges } = response.data;
-        const formattedGraph = {
-          nodes: nodes.map((node: string) => ({ id: `G-${node}` })),
-          links: edges.map(([source, target]: [string, string]) => ({ source: `G-${source}`, target: `G-${target}` }))
-        };
-        setGraphG(formattedGraph);
+  const [graphMetadata, setGraphMetadata] = useState({
+    graph_type: "Loading...",
+    num_nodes: 0,
+    num_edges: 0
+});
 
-        setTimeout(() => {
-          if (graphRefG.current) {
-            graphRefG.current.zoomToFit(400, 50);
-          }
-        }, 100);
-      })
-      .catch(error => console.error('Error fetching graph G:', error));
-  }, []);
+useEffect(() => {
+  axios.get('http://localhost:5000/get_graph')
+    .then(response => {
+      const { nodes, edges, graph_type, num_nodes, num_edges } = response.data;
+      setGraphG({
+        nodes: nodes.map((node: string) => ({ id: `G-${node}` })),
+        links: edges.map(([source, target]: [string, string]) => ({ source: `G-${source}`, target: `G-${target}` }))
+      });
+
+      setGraphMetadata({
+        graph_type: graph_type,
+        num_nodes: num_nodes,
+        num_edges: num_edges
+      });
+
+      setTimeout(() => {
+        if (graphRefG.current) {
+          graphRefG.current.zoomToFit(400, 50);
+        }
+      }, 100);
+    })
+    .catch(error => console.error('Error fetching graph G:', error));
+}, []);
+
+
+
 
   const generateBiclique = () => {
     axios.post('http://localhost:5000/generate_biclique', {
@@ -182,6 +196,14 @@ const NeighbourhoodUpdate: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'row', height: '100vh' }}>
       <div style={{ flex: 2, border: '1px solid #ccc', marginRight: '10px' }}>
         <h2 style={{ textAlign: 'center' }}>Graph G (Complex Graph)</h2>
+
+        <div style={{ padding: '10px', borderBottom: '1px solid #ddd', backgroundColor: '#f9f9f9' }}>
+          <h3>Graph Information</h3>
+          <p><strong>Type:</strong> {graphMetadata.graph_type}</p>
+          <p><strong>Nodes:</strong> {graphMetadata.num_nodes}</p>
+          <p><strong>Edges:</strong> {graphMetadata.num_edges}</p>
+        </div>
+
         <ForceGraph2D
           ref={graphRefG}
           graphData={graphG}
@@ -226,7 +248,7 @@ const NeighbourhoodUpdate: React.FC = () => {
         </div>
 
         <div style={{ flex: 1, border: '1px solid #ccc', padding: '10px' }}>
-          <h3>Current Homomorphism:</h3>
+          <h3>Current Homomorphism (Using Neighbourhood Algo):</h3>
           <ul>
             {Object.entries(homomorphism).map(([S_vertex, G_vertex]) => (
               <li key={S_vertex}>
