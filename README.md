@@ -29,7 +29,7 @@ This project explores the mixing time of Markov Chains used to sample homomorphi
 
 ## 🛠️ Scripts
 
-You can use the following `npm` scripts to run or test the project:
+You can use the following `npm` scripts to run or test the project from the root directory (\Dissertation):
 
 - `start-Concurrent`: Starts both frontend and backend concurrently   
 - `tests`: Runs both frontend and backend tests
