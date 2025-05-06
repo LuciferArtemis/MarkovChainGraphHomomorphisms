@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import RegularUpdate from "./RegularUpdate";
-import SmartUpdate from "./NeighbourhoodUpdate";
 import NeighbourhoodUpdate from "./NeighbourhoodUpdate";
 
 const App: React.FC = () => {

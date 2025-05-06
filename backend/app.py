@@ -6,6 +6,8 @@ import random
 app = Flask(__name__)
 CORS(app) 
 
+#uncomment only one out of these 4 graphs. Leave the other 3 commented
+
 G = nx.complete_graph(50)
 G.graph["graph_type"] = "Complete Graph"
 

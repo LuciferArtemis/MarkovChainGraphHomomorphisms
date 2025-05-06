@@ -16,6 +16,7 @@ const RegularUpdate: React.FC = () => {
   const [selectedS, setSelectedS] = useState<string | null>(null);
   const [selectedG, setSelectedG] = useState<string | null>(null);
   const [homomorphicEdges, setHomomorphicEdges] = useState<Array<[string, string]>>([]);
+  const [numIterations, setNumIterations] = useState(100);
 
   const graphRefG = useRef<any>(null);
   const graphRefS = useRef<any>(null);
@@ -121,33 +122,34 @@ useEffect(() => {
     let successCount = 0;
     let failureCount = 0;
 
-    for (let i = 0; i < 100; i++) {
-      try {
-        const response = await axios.post('http://localhost:5000/update_homomorphism');
-        const { homomorphism, success, message, selected_S, selected_G, homomorphic_edges } = response.data;
+    for (let i = 0; i < numIterations; i++) {
+        try {
+            const response = await axios.post('http://localhost:5000/update_homomorphism');
+            const { homomorphism, success, selected_S, selected_G, homomorphic_edges } = response.data;
 
-        setSelectedS(`S-${selected_S}`);
-        setSelectedG(`G-${selected_G}`);
-        setHomomorphicEdges(homomorphic_edges || []);
+            setSelectedS(`S-${selected_S}`);
+            setSelectedG(`G-${selected_G}`);
+            setHomomorphicEdges(homomorphic_edges || []);
 
-        if (success) {
-          setHomomorphism(homomorphism);
-          setMarkovChain(prevChain => [...prevChain, homomorphism]);
-          successCount++;
-        } else {
-          failureCount++;
+            if (success) {
+                setHomomorphism(homomorphism);
+                setMarkovChain(prevChain => [...prevChain, homomorphism]);
+                successCount++;
+            } else {
+                failureCount++;
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+        } catch (error) {
+            console.error('Error during homomorphism update:', error);
+            failureCount++;
         }
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-      } catch (error) {
-        console.error('Error during homomorphism update:', error);
-        failureCount++;
-      }
     }
 
-    alert(`Out of 100 iterations:\n- Successful homomorphisms: ${successCount}\n- Failed homomorphisms: ${failureCount}`);
-  };
+    alert(`Out of ${numIterations} iterations:\n- Successful homomorphisms: ${successCount}\n- Failed homomorphisms: ${failureCount}`);
+};
+
 
   const renderNode = (node: any, ctx: any, globalScale: number) => {
     const size = 10 / globalScale;
@@ -259,11 +261,24 @@ useEffect(() => {
 
           <div style={{ marginTop: '10px' }}>
             <button onClick={updateHomomorphism} style={{ marginRight: '10px' }}>
-              Update Homomorphism
+              Update Homomorphism (Single Step)
             </button>
-            <button onClick={updateHomomorphismMultiple}>
-              Run 100 Iterations
-            </button>
+            <div style={{ marginTop: '10px' }}>
+                <label>
+                    Number of iterations:
+                    <input
+                        type="number"
+                        value={numIterations}
+                        onChange={(e) => setNumIterations(Number(e.target.value))}
+                        style={{ marginLeft: '10px', width: '60px' }}
+                        min="1"
+                    />
+                </label>
+                <button onClick={updateHomomorphismMultiple} style={{ marginLeft: '10px' }}>
+                    Update Homomorphism
+                </button>
+            </div>
+
           </div>
 
           <h3 style={{ marginTop: '10px' }}>Markov Chain (States):</h3>
